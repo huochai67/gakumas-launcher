@@ -1,18 +1,16 @@
-name: Build launcher
+name: Build and Release
+
 on:
   workflow_dispatch:
   push:
-    paths:
-      - 'launcher/**'
-      - '.github/workflows/build.yml'
-  pull_request:
-    paths:
-      - 'launcher/**'
-      - '.github/workflows/build.yml'
+    tags:
+      - '*'
+
 permissions:
-  contents: read
+  contents: write
+
 jobs:
-  launcher:
+  build:
     strategy:
       matrix:
         include:
@@ -26,7 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build launcher
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build gakumas-launcher
         run: cargo build --release --locked --manifest-path launcher/Cargo.toml --bin gakumas-launcher --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
@@ -38,5 +38,35 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
-          name: gakumas-windows-x64
+          name: gakumas-host-windows-x64
           path: launcher/target/${{ matrix.target }}/release/gakumas.exe
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Package release assets
+        run: |
+          mkdir -p dist/windows dist/linux release
+          cp artifacts/gakumas-launcher-x86_64-pc-windows-msvc/gakumas-launcher.exe dist/windows/
+          cp artifacts/gakumas-host-windows-x64/gakumas.exe dist/windows/
+          cp decrypt.py dist/windows/
+          (cd dist/windows && zip -r ../../release/gakumas-launcher-x86_64-pc-windows-msvc.zip .)
+
+          cp artifacts/gakumas-launcher-x86_64-unknown-linux-gnu/gakumas-launcher dist/linux/
+          chmod +x dist/linux/gakumas-launcher
+          cp artifacts/gakumas-host-windows-x64/gakumas.exe dist/linux/
+          cp decrypt.py dist/linux/
+          tar -C dist/linux -czf release/gakumas-launcher-x86_64-unknown-linux-gnu.tar.gz .
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/gakumas-launcher-x86_64-pc-windows-msvc.zip
+            release/gakumas-launcher-x86_64-unknown-linux-gnu.tar.gz
