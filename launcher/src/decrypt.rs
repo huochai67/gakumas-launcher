@@ -1152,6 +1152,7 @@ fn sha256_bytes(data: &[u8]) -> String {
 pub fn decrypt_with_profile(
     packed_path: &Path,
     output_path: &Path,
+    backup_path: Option<&Path>,
     profile_dir: &Path,
 ) -> Result<String, DynError> {
     let packed = fs::read(packed_path)?;
@@ -1225,9 +1226,25 @@ pub fn decrypt_with_profile(
         fs::create_dir_all(parent)?;
         let mut temp = tempfile::NamedTempFile::new_in(parent)?;
         std::io::Write::write_all(&mut temp, &image)?;
-        temp.persist(output_path)?;
+        if let Some(bak) = backup_path {
+            fs::copy(packed_path, bak)?;
+        }
+        if let Err(err) = temp.persist(output_path) {
+            if let Some(bak) = backup_path {
+                let _ = fs::remove_file(bak);
+            }
+            return Err(err.into());
+        }
     } else {
-        fs::write(output_path, &image)?;
+        if let Some(bak) = backup_path {
+            fs::copy(packed_path, bak)?;
+        }
+        if let Err(err) = fs::write(output_path, &image) {
+            if let Some(bak) = backup_path {
+                let _ = fs::remove_file(bak);
+            }
+            return Err(err.into());
+        }
     }
     Ok(output_hash)
 }

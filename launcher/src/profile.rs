@@ -10,6 +10,9 @@ use url::Url;
 
 use crate::client::DynError;
 
+pub const DEFAULT_PROFILE_BASE_URL: &str =
+    "https://raw.githubusercontent.com/huochai67/gakumas-launcher/main";
+
 const FILES: [&str; 5] = ["manifest.json", "key.bin", "sbox.bin", "pass3.bin", "records.bin"];
 
 #[derive(Deserialize)]
@@ -17,11 +20,6 @@ struct Status {
     decrypted: bool,
     packed_sha256: Option<String>,
     profile: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct Manifest {
-    packed_sha256: Option<String>,
 }
 
 pub enum Profile {
@@ -38,37 +36,6 @@ impl Profile {
     }
 }
 
-fn find_local_profile(packed_sha256: &str) -> Option<PathBuf> {
-    let mut roots = vec![PathBuf::from("profile"), PathBuf::from("public/profile")];
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            roots.push(parent.join("profile"));
-            roots.push(parent.join("../profile"));
-        }
-    }
-    for root in roots {
-        let Ok(entries) = fs::read_dir(&root) else { continue };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
-            }
-            let Ok(bytes) = fs::read(path.join("manifest.json")) else { continue };
-            let Ok(manifest) = serde_json::from_slice::<Manifest>(&bytes) else { continue };
-            if manifest
-                .packed_sha256
-                .as_deref()
-                .is_some_and(|h| h.eq_ignore_ascii_case(packed_sha256))
-            {
-                if let Ok(canon) = fs::canonicalize(&path) {
-                    return Some(canon);
-                }
-            }
-        }
-    }
-    None
-}
-
 pub async fn resolve(
     local: Option<&Path>,
     base_url: Option<&str>,
@@ -83,12 +50,12 @@ pub async fn resolve(
             }
             Ok(Profile::Local(path))
         }
-        (None, Some(raw_base)) => download_remote_profile(raw_base, packed_sha256).await,
-        (None, None) => {
-            if let Some(found) = find_local_profile(packed_sha256) {
-                return Ok(Profile::Local(found));
-            }
-            Err("no matching local profile found in ./profile or ./public/profile; pass --profile <DIR> or --profile-base-url <URL>".into())
+        (None, raw_base) => {
+            download_remote_profile(
+                raw_base.unwrap_or(DEFAULT_PROFILE_BASE_URL),
+                packed_sha256,
+            )
+            .await
         }
     }
 }

@@ -81,6 +81,7 @@ impl TokenStore {
     }
 }
 
+#[cfg(not(windows))]
 pub fn local_identity_seed() -> Result<Vec<u8>, DynError> {
     let path = config_dir()?.join("identity.bin");
     if let Ok(bytes) = fs::read(&path) {

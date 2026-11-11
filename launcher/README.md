@@ -18,10 +18,10 @@
 ```json
 {
   "dir": "/path/to/game",
-  "profile_base_url": "https://raw.githubusercontent.com/<owner>/<repo>/main",
+  "profile_base_url": "https://raw.githubusercontent.com/huochai67/gakumas-launcher/main",
   "bepinex": "/path/to/BepInEx-Unity.IL2CPP-win-x64.zip",
   "host": "/path/to/gakumas.exe",
-  "host_url": "https://github.com/<owner>/<repo>/releases/latest/download/gakumas.exe",
+  "host_url": "https://github.com/huochai67/gakumas-launcher/releases/latest/download/gakumas.exe",
   "wine": "wine",
   "wine_prefix": "/path/to/wineprefix"
 }

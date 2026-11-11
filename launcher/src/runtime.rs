@@ -28,7 +28,12 @@ pub struct Options {
 impl Options {
     pub fn apply_config(&mut self, config: &AppConfig) {
         if self.profile.is_none() && self.profile_base_url.is_none() {
-            self.profile_base_url = config.profile_base_url.clone();
+            self.profile_base_url = Some(
+                config
+                    .profile_base_url
+                    .clone()
+                    .unwrap_or_else(|| profile::DEFAULT_PROFILE_BASE_URL.to_owned()),
+            );
         }
         if self.host.is_none() {
             self.host = config.host.clone();
@@ -167,17 +172,24 @@ async fn resolve_host_binary(options: &Options, game_root: &Path) -> Result<Path
 pub async fn decrypt(root: &Path, options: &Options, force: bool) -> Result<(), DynError> {
     let ga = root.join("GameAssembly.dll");
     let packed = root.join("GameAssembly.dll.bak");
-    if packed.is_file() && ga.is_file() && !force {
-        println!("GameAssembly.dll already decrypted (use --force to re-decrypt).");
-        return Ok(());
-    }
-    if !packed.is_file() {
-        if !ga.is_file() {
-            return Err("GameAssembly.dll is missing; run download first".into());
+    let mut has_backup = packed.is_file();
+    if has_backup && ga.is_file() {
+        if sha256(&packed)? == sha256(&ga)? {
+            let _ = fs::remove_file(&packed);
+            has_backup = false;
+        } else if !force {
+            println!("GameAssembly.dll already decrypted (use --force to re-decrypt).");
+            return Ok(());
         }
-        fs::copy(&ga, &packed)?;
     }
-    let packed_hash = sha256(&packed)?;
+    let input = if has_backup {
+        &packed
+    } else if ga.is_file() {
+        &ga
+    } else {
+        return Err("GameAssembly.dll is missing; run download first".into());
+    };
+    let packed_hash = sha256(input)?;
     let source = profile::resolve(
         options.profile.as_deref(),
         options.profile_base_url.as_deref(),
@@ -185,7 +197,8 @@ pub async fn decrypt(root: &Path, options: &Options, force: bool) -> Result<(), 
     )
     .await?;
 
-    let output_hash = decrypt::decrypt_with_profile(&packed, &ga, source.path())?;
+    let backup = (!has_backup).then_some(packed.as_path());
+    let output_hash = decrypt::decrypt_with_profile(input, &ga, backup, source.path())?;
     println!("Decrypted GameAssembly.dll (SHA-256: {output_hash}): {}", ga.display());
     Ok(())
 }
