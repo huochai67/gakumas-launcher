@@ -1,0 +1,47 @@
+{
+  "packed_sha256": "fcec65ab4cbc18391ad5a67933e487d9dd8d7cbd6959c8aec1549a8369be4678",
+  "backend": "aes256",
+  "stage1": {
+    "header": [
+      1349904932,
+      1313754955,
+      7004,
+      199450624,
+      1248,
+      929456,
+      200225280,
+      160
+    ],
+    "dest_rva": 199450624,
+    "chunk": 782848,
+    "tail": 146608,
+    "written": [
+      199450624,
+      200380080
+    ]
+  },
+  "records": {
+    "count": 47974,
+    "sha256": "fbc85d624492b5e0e4a9c746983441cd916ee9838d912249fd731a0f5a6ce38f"
+  },
+  "key": {
+    "sha256": "b4bc43528e27173b68989b20c2f44a5af6ca2548b11c83a10ccc3d52aaad4668"
+  },
+  "sbox": {
+    "sha256": "97671f9a9996aee0c10ab51e9386b6b44b533213aa0afab9b03e04dbe0df54c3"
+  },
+  "pass3": {
+    "entries": 1426,
+    "sha256": "15f8887ff32bbba32646ad3454e12d5f252b848b77994ce4a35b59e0f91bef5a"
+  },
+  "payload": 934800,
+  "helper": null,
+  "decode": {
+    "records": 47974,
+    "valid": 47974,
+    "invalid": 0,
+    "compared": 0,
+    "matched": 0,
+    "cursor_end": 110179824
+  }
+}
