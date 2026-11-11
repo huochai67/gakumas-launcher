@@ -1,18 +1,32 @@
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AccessTokenInfo {
     #[serde(rename = "access_token")]
     pub access_token: String,
-    #[serde(rename = "expires_in_seconds")]
+    #[serde(rename = "expires_in_seconds", default)]
     pub expires_in_seconds: i64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StoredSession {
+    #[serde(flatten)]
     pub token: AccessTokenInfo,
-    #[serde(rename = "storedAt", alias = "stored_at", alias = "StoredAt")]
+    #[serde(default, alias = "storedAt", alias = "StoredAt")]
     pub stored_at: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AppConfig {
+    #[serde(alias = "game_dir")]
+    pub dir: Option<PathBuf>,
+    #[serde(alias = "profile_repo", alias = "profile_url")]
+    pub profile_base_url: Option<String>,
+    pub bepinex: Option<PathBuf>,
+    pub host: Option<PathBuf>,
+    pub wine: Option<PathBuf>,
+    pub wine_prefix: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

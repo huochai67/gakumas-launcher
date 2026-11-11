@@ -7,7 +7,7 @@ use std::{
 use clap::Args;
 use sha2::{Digest, Sha256};
 
-use crate::{client::DynError, download::safe_path, profile};
+use crate::{client::DynError, download::safe_path, models::AppConfig, profile};
 
 #[derive(Debug, Args)]
 pub struct Options {
@@ -21,10 +21,31 @@ pub struct Options {
     pub profile_base_url: Option<String>,
     #[arg(long, global = true)]
     pub host: Option<PathBuf>,
-    #[arg(long, global = true, default_value = "wine")]
-    pub wine: PathBuf,
+    #[arg(long, global = true)]
+    pub wine: Option<PathBuf>,
     #[arg(long, global = true, env = "WINEPREFIX")]
     pub wine_prefix: Option<PathBuf>,
+}
+
+impl Options {
+    pub fn apply_config(&mut self, config: &AppConfig) {
+        if self.profile.is_none() && self.profile_base_url.is_none() {
+            self.profile_base_url = config.profile_base_url.clone();
+        }
+        if self.host.is_none() {
+            self.host = config.host.clone();
+        }
+        if self.wine.is_none() {
+            self.wine = config.wine.clone();
+        }
+        if self.wine_prefix.is_none() {
+            self.wine_prefix = config.wine_prefix.clone();
+        }
+    }
+
+    pub fn wine_bin(&self) -> PathBuf {
+        self.wine.clone().unwrap_or_else(|| PathBuf::from("wine"))
+    }
 }
 
 pub fn sha256(path: &Path) -> Result<String, DynError> {

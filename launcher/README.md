@@ -23,25 +23,42 @@ cargo build --release --manifest-path public/launcher/Cargo.toml --target x86_64
 cargo build --release --manifest-path public/launcher/Cargo.toml --target x86_64-pc-windows-gnu --bin gakumas
 ```
 
+## 数据目录与配置文件（`$HOME/.config/gakumas`）
+
+启动器使用 `$HOME/.config/gakumas` 作为数据与配置目录：
+
+- **`$HOME/.config/gakumas/session.json`**：保存 DMM 登录凭证（`access_token`、`expires_in_seconds`、`stored_at`）。
+- **`$HOME/.config/gakumas/config.json`**：可选配置文件，用于设置默认游戏目录、远程 Profile 仓库地址等参数（命令行参数优先级高于 `config.json`）：
+
+```json
+{
+  "dir": "/path/to/game",
+  "profile_base_url": "https://raw.githubusercontent.com/<owner>/<repo>/main",
+  "bepinex": "/path/to/BepInEx-Unity.IL2CPP-win-x64.zip",
+  "host": "/path/to/gakumas.exe",
+  "wine": "wine",
+  "wine_prefix": "/path/to/wineprefix"
+}
+```
+
+（其中 `dir` 也支持别名 `game_dir`，`profile_base_url` 支持别名 `profile_repo` / `profile_url`。）
+
 ## 用法
 
 ### 1. 一键全流程启动（推荐）
 
-直接运行 `gakumas-launcher`（无需任何子命令）：
+配置好 `$HOME/.config/gakumas/config.json` 后直接运行 `gakumas-launcher`（无需任何参数）：
 
 ```sh
 # 自动检测登录状态（未登录则引导登录） -> 下载/校验游戏文件 -> 匹配 Profile 脱壳并部署宿主 -> 启动游戏
 gakumas-launcher
 
-# 指定游戏目录与可选安装 BepInEx (Windows x64 IL2CPP zip)
-gakumas-launcher --dir /path/to/game --bepinex /path/to/BepInEx-Unity.IL2CPP-win-x64.zip
-
-# 从远端公开仓库自动拉取最新 status.json 与对应版本 Profile
+# 或通过命令行参数指定
 gakumas-launcher --dir /path/to/game --profile-base-url https://raw.githubusercontent.com/<owner>/<repo>/main
 ```
 
 - 脱壳时自动将原始文件备份为 `GameAssembly.dll.bak` 与 `gakumas.exe.bak`；若后续运行游戏未发生版本更新，启动器会直接复用已脱壳文件跳过重复解密。
-- 若未指定 `--profile` 或 `--profile-base-url`，启动器会自动在 `./profile`、`./public/profile` 或可执行文件同级的 `profile/` 目录中按 `packed_sha256` 查找匹配的本地 Profile。
+- 若未指定 `--profile` 或 `profile_base_url`，启动器会自动在 `./profile`、`./public/profile` 或可执行文件同级的 `profile/` 目录中按 `packed_sha256` 查找匹配的本地 Profile。
 
 ### 2. 分步子命令（可选）
 
@@ -51,16 +68,16 @@ gakumas-launcher login
 gakumas-launcher logout
 
 # 仅下载或校验客户端文件（--dry-run 仅列出待更新文件）
-gakumas-launcher --dir /path/to/game download --jobs 8
-gakumas-launcher --dir /path/to/game download --dry-run
+gakumas-launcher download --jobs 8
+gakumas-launcher download --dry-run
 
 # 仅使用 Profile 解密 GameAssembly.dll
-gakumas-launcher --dir /path/to/game --profile public/profile/3.5.3 decrypt
+gakumas-launcher decrypt
 
 # 下载、脱壳并部署宿主（不启动游戏）
-gakumas-launcher --dir /path/to/game --profile public/profile/3.5.3 prepare
+gakumas-launcher prepare
 
-# 仅获取 DMM 启动参数并拉起已准备好的游戏（Linux 下通过 --wine / WINEPREFIX 调用 Wine）
-gakumas-launcher --dir /path/to/game launch
-gakumas-launcher --dir /path/to/game launch --dry-run
+# 仅获取 DMM 启动参数并拉起已准备好的游戏
+gakumas-launcher launch
+gakumas-launcher launch --dry-run
 ```

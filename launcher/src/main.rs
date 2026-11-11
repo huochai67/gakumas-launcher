@@ -26,8 +26,8 @@ const GAME_TYPE: &str = "GCL";
     about = "Gakumas launcher: run without arguments to automatically login, download, decrypt, and launch"
 )]
 struct Cli {
-    #[arg(long, global = true, default_value = "game")]
-    dir: PathBuf,
+    #[arg(long, global = true)]
+    dir: Option<PathBuf>,
     #[arg(long, global = true, default_value_t = 8, alias = "concurrency")]
     jobs: usize,
     #[arg(long, global = true)]
@@ -70,10 +70,18 @@ async fn main() {
 }
 
 async fn run() -> Result<(), DynError> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    let config = token::load_config()?;
+    cli.runtime.apply_config(&config);
+    let game_dir = cli
+        .dir
+        .or(config.dir)
+        .unwrap_or_else(|| PathBuf::from("game"));
+    let bepinex = cli.bepinex.or(config.bepinex);
+
     if let Some(Commands::Decrypt) = &cli.command {
-        fs::create_dir_all(&cli.dir)?;
-        let root = fs::canonicalize(&cli.dir)?;
+        fs::create_dir_all(&game_dir)?;
+        let root = fs::canonicalize(&game_dir)?;
         return runtime::decrypt(&root, &cli.runtime, cli.force).await;
     }
 
@@ -94,8 +102,8 @@ async fn run() -> Result<(), DynError> {
         Some(Commands::Download) => {
             ensure_logged_in(&mut api, &store).await?;
             let manifest = install_manifest(&api).await?;
-            fs::create_dir_all(&cli.dir)?;
-            let root = fs::canonicalize(&cli.dir)?;
+            fs::create_dir_all(&game_dir)?;
+            let root = fs::canonicalize(&game_dir)?;
             if cli.dry_run {
                 download::dry_run(manifest, root, cli.force, cli.jobs).await?;
             } else {
@@ -105,24 +113,24 @@ async fn run() -> Result<(), DynError> {
         Some(Commands::Prepare) => {
             ensure_logged_in(&mut api, &store).await?;
             let manifest = install_manifest(&api).await?;
-            fs::create_dir_all(&cli.dir)?;
-            let root = fs::canonicalize(&cli.dir)?;
+            fs::create_dir_all(&game_dir)?;
+            let root = fs::canonicalize(&game_dir)?;
             download::download_all(api, manifest, root.clone(), cli.force, cli.jobs).await?;
-            runtime::prepare(&root, &cli.runtime, cli.bepinex.as_deref(), cli.force).await?;
+            runtime::prepare(&root, &cli.runtime, bepinex.as_deref(), cli.force).await?;
         }
         Some(Commands::Launch) => {
             ensure_logged_in(&mut api, &store).await?;
-            let root = fs::canonicalize(&cli.dir)?;
+            let root = fs::canonicalize(&game_dir)?;
             launch_game(&api, &store, &root, &cli.runtime, cli.dry_run).await?;
         }
         Some(Commands::Decrypt) => unreachable!(),
         None => {
             ensure_logged_in(&mut api, &store).await?;
             let manifest = install_manifest(&api).await?;
-            fs::create_dir_all(&cli.dir)?;
-            let root = fs::canonicalize(&cli.dir)?;
+            fs::create_dir_all(&game_dir)?;
+            let root = fs::canonicalize(&game_dir)?;
             download::download_all(api.clone(), manifest, root.clone(), cli.force, cli.jobs).await?;
-            runtime::prepare(&root, &cli.runtime, cli.bepinex.as_deref(), cli.force).await?;
+            runtime::prepare(&root, &cli.runtime, bepinex.as_deref(), cli.force).await?;
             launch_game(&api, &store, &root, &cli.runtime, cli.dry_run).await?;
         }
     }
@@ -256,7 +264,7 @@ async fn launch_game(
     let mut command = if cfg!(windows) {
         tokio::process::Command::new(&executable)
     } else {
-        let mut cmd = tokio::process::Command::new(&options.wine);
+        let mut cmd = tokio::process::Command::new(options.wine_bin());
         cmd.arg(&executable).env("WINEARCH", "win64");
         if let Some(prefix) = &options.wine_prefix {
             cmd.env("WINEPREFIX", std::path::absolute(prefix)?);

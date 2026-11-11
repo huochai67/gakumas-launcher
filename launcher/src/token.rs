@@ -4,20 +4,16 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{client::DynError, models::StoredSession};
+use crate::{
+    client::DynError,
+    models::{AppConfig, StoredSession},
+};
 
-pub fn state_dir() -> Result<PathBuf, DynError> {
-    let path = if let Some(path) = std::env::var_os("GAKUMAS_STATE_DIR") {
-        PathBuf::from(path)
-    } else if cfg!(windows) {
-        PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA is not set")?)
-            .join("gakumas")
-    } else if let Some(path) = std::env::var_os("XDG_STATE_HOME") {
-        PathBuf::from(path).join("gakumas")
-    } else {
-        PathBuf::from(std::env::var_os("HOME").ok_or("HOME is not set")?)
-            .join(".local/state/gakumas")
-    };
+pub fn config_dir() -> Result<PathBuf, DynError> {
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .ok_or("HOME is not set")?;
+    let path = PathBuf::from(home).join(".config").join("gakumas");
     fs::create_dir_all(&path)?;
     #[cfg(unix)]
     {
@@ -27,6 +23,15 @@ pub fn state_dir() -> Result<PathBuf, DynError> {
     Ok(path)
 }
 
+pub fn load_config() -> Result<AppConfig, DynError> {
+    let path = config_dir()?.join("config.json");
+    match fs::read(&path) {
+        Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(AppConfig::default()),
+        Err(error) => Err(error.into()),
+    }
+}
+
 pub struct TokenStore {
     path: PathBuf,
 }
@@ -34,7 +39,7 @@ pub struct TokenStore {
 impl TokenStore {
     pub fn new() -> Result<Self, DynError> {
         Ok(Self {
-            path: state_dir()?.join("session.bin"),
+            path: config_dir()?.join("session.json"),
         })
     }
 
@@ -44,19 +49,25 @@ impl TokenStore {
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error.into()),
         };
-        let clear = protect_data(&bytes, false)?;
-        Ok(serde_json::from_slice(&clear).ok())
+        let Ok(session) = serde_json::from_slice::<StoredSession>(&bytes) else {
+            return Ok(None);
+        };
+        if session.token.access_token.trim().is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(session))
     }
 
     pub fn save(&self, session: &StoredSession) -> Result<(), DynError> {
-        let encrypted = protect_data(&serde_json::to_vec(session)?, true)?;
+        let mut payload = serde_json::to_vec_pretty(session)?;
+        payload.push(b'\n');
         let mut temp = tempfile::NamedTempFile::new_in(self.path.parent().unwrap())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let _ = temp.as_file().set_permissions(fs::Permissions::from_mode(0o600));
         }
-        temp.write_all(&encrypted)?;
+        temp.write_all(&payload)?;
         temp.persist(&self.path)?;
         Ok(())
     }
@@ -71,7 +82,7 @@ impl TokenStore {
 }
 
 pub fn local_identity_seed() -> Result<Vec<u8>, DynError> {
-    let path = state_dir()?.join("identity.bin");
+    let path = config_dir()?.join("identity.bin");
     if let Ok(bytes) = fs::read(&path) {
         if bytes.len() == 32 {
             return Ok(bytes);
@@ -81,44 +92,4 @@ pub fn local_identity_seed() -> Result<Vec<u8>, DynError> {
     getrandom::getrandom(&mut bytes).map_err(|_| "unable to generate local hardware identity")?;
     fs::write(&path, &bytes)?;
     Ok(bytes)
-}
-
-#[cfg(windows)]
-fn protect_data(data: &[u8], protect: bool) -> Result<Vec<u8>, DynError> {
-    use std::{
-        mem::zeroed,
-        ptr::{null, null_mut},
-        slice::from_raw_parts,
-    };
-    use windows_sys::Win32::{
-        Foundation::LocalFree,
-        Security::Cryptography::{
-            CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptProtectData, CryptUnprotectData,
-        },
-    };
-    let input = CRYPT_INTEGER_BLOB {
-        cbData: data.len() as u32,
-        pbData: data.as_ptr() as *mut u8,
-    };
-    let mut output: CRYPT_INTEGER_BLOB = unsafe { zeroed() };
-    let ok = unsafe {
-        if protect {
-            CryptProtectData(&input, null(), null(), null(), null(), CRYPTPROTECT_UI_FORBIDDEN, &mut output)
-        } else {
-            CryptUnprotectData(&input, null_mut(), null(), null(), null(), CRYPTPROTECT_UI_FORBIDDEN, &mut output)
-        }
-    };
-    if ok == 0 {
-        return Err(io::Error::last_os_error().into());
-    }
-    let result = unsafe { from_raw_parts(output.pbData, output.cbData as usize).to_vec() };
-    unsafe {
-        LocalFree(output.pbData as *mut std::ffi::c_void);
-    }
-    Ok(result)
-}
-
-#[cfg(not(windows))]
-fn protect_data(data: &[u8], _protect: bool) -> Result<Vec<u8>, DynError> {
-    Ok(data.to_vec())
 }
