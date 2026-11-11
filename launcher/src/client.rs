@@ -5,9 +5,7 @@ use reqwest::{
 use serde_json::{Value, json};
 use url::Url;
 
-use crate::models::{
-    AccessTokenInfo, FileEntry, FileManifest, GameSummary, HardwareInfo, LaunchInfo,
-};
+use crate::models::{AccessTokenInfo, FileEntry, FileManifest, HardwareInfo, LaunchInfo};
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -76,13 +74,6 @@ impl DmmClient {
         Ok(())
     }
 
-
-    pub async fn games(&self) -> Result<Vec<GameSummary>, DynError> {
-        let data = self
-            .post("v5/mygames", Some(json!({"user_os":"win"})), true)
-            .await?;
-        Ok(serde_json::from_value(data)?)
-    }
 
     pub async fn install_info(
         &self,

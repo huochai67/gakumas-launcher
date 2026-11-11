@@ -25,19 +25,6 @@ pub struct HardwareInfo {
     pub user_os: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct GameSummary {
-    #[serde(rename = "product_id")]
-    pub product_id: String,
-    #[serde(rename = "type")]
-    pub game_type: String,
-    #[serde(rename = "game_os")]
-    pub game_os: String,
-    pub title: Option<String>,
-    #[serde(rename = "is_game_requires_install")]
-    pub requires_install: bool,
-}
-
 #[derive(Clone, Debug)]
 pub struct LaunchInfo {
     pub file_list_url: String,

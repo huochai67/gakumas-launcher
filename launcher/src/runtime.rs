@@ -13,11 +13,11 @@ use crate::{client::DynError, download::safe_path, profile};
 pub struct Options {
     #[arg(long, global = true, default_value = if cfg!(windows) { "python" } else { "python3" })]
     pub python: PathBuf,
-    #[arg(long, global = true, default_value = "public/decrypt.py")]
-    pub decrypt_script: PathBuf,
+    #[arg(long, global = true)]
+    pub decrypt_script: Option<PathBuf>,
     #[arg(long, global = true, conflicts_with = "profile_base_url")]
     pub profile: Option<PathBuf>,
-    #[arg(long, global = true, conflicts_with = "profile")]
+    #[arg(long, global = true, env = "GAKUMAS_PROFILE_BASE_URL", conflicts_with = "profile")]
     pub profile_base_url: Option<String>,
     #[arg(long, global = true)]
     pub host: Option<PathBuf>,
@@ -41,23 +41,59 @@ pub fn sha256(path: &Path) -> Result<String, DynError> {
     Ok(hex::encode(hash.finalize()))
 }
 
-/// Restore backed-up original binaries before running DMM manifest integrity checks.
-pub fn restore_backups(root: &Path) -> Result<(), DynError> {
-    for (bak, orig) in [
-        ("GameAssembly.dll.bak", "GameAssembly.dll"),
-        ("gakumas.exe.bak", "gakumas.exe"),
-    ] {
-        let bak_path = root.join(bak);
-        if bak_path.is_file() {
-            fs::rename(&bak_path, root.join(orig))?;
+fn find_decrypt_script(explicit: Option<&Path>) -> Result<PathBuf, DynError> {
+    if let Some(path) = explicit {
+        return Ok(fs::canonicalize(path)?);
+    }
+    let mut candidates = vec![PathBuf::from("decrypt.py"), PathBuf::from("public/decrypt.py")];
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            candidates.push(parent.join("decrypt.py"));
+            candidates.push(parent.join("../decrypt.py"));
         }
     }
-    Ok(())
+    for candidate in candidates {
+        if candidate.is_file() {
+            return Ok(fs::canonicalize(candidate)?);
+        }
+    }
+    Err("decrypt.py not found; pass --decrypt-script <PATH>".into())
 }
 
-pub async fn decrypt(root: &Path, options: &Options) -> Result<(), DynError> {
+fn find_host_binary(explicit: Option<&Path>, game_root: &Path) -> Result<PathBuf, DynError> {
+    if let Some(path) = explicit {
+        return Ok(fs::canonicalize(path)?);
+    }
+    let mut candidates = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            candidates.push(parent.join("gakumas.exe"));
+        }
+    }
+    candidates.push(PathBuf::from("gakumas.exe"));
+    candidates.push(PathBuf::from("public/launcher/target/x86_64-pc-windows-msvc/release/gakumas.exe"));
+    candidates.push(PathBuf::from("public/launcher/target/x86_64-pc-windows-gnu/release/gakumas.exe"));
+
+    let game_exe = game_root.join("gakumas.exe");
+    for candidate in candidates {
+        if candidate.is_file() {
+            if let Ok(canon) = fs::canonicalize(&candidate) {
+                if fs::canonicalize(&game_exe).ok().as_ref() != Some(&canon) {
+                    return Ok(canon);
+                }
+            }
+        }
+    }
+    Err("host gakumas.exe not found; build `--bin gakumas` for Windows x64 or pass --host <PATH>".into())
+}
+
+pub async fn decrypt(root: &Path, options: &Options, force: bool) -> Result<(), DynError> {
     let ga = root.join("GameAssembly.dll");
     let packed = root.join("GameAssembly.dll.bak");
+    if packed.is_file() && ga.is_file() && !force {
+        println!("GameAssembly.dll already decrypted (use --force to re-decrypt).");
+        return Ok(());
+    }
     if !packed.is_file() {
         if !ga.is_file() {
             return Err("GameAssembly.dll is missing; run download first".into());
@@ -71,8 +107,7 @@ pub async fn decrypt(root: &Path, options: &Options) -> Result<(), DynError> {
         &packed_hash,
     )
     .await?;
-    let script = fs::canonicalize(&options.decrypt_script)
-        .map_err(|_| format!("decrypt script not found: {}", options.decrypt_script.display()))?;
+    let script = find_decrypt_script(options.decrypt_script.as_deref())?;
 
     let status = tokio::process::Command::new(&options.python)
         .arg(script)
@@ -89,26 +124,23 @@ pub async fn decrypt(root: &Path, options: &Options) -> Result<(), DynError> {
     Ok(())
 }
 
-pub async fn prepare(root: &Path, options: &Options, bepinex: Option<&Path>) -> Result<(), DynError> {
-    let host = match &options.host {
-        Some(path) => fs::canonicalize(path)?,
-        None => std::env::current_exe()?
-            .parent()
-            .ok_or("launcher has no parent directory")?
-            .join("gakumas.exe"),
-    };
-    if !host.is_file() {
-        return Err(format!("host gakumas.exe not found at {}; pass --host <PATH>", host.display()).into());
-    }
-
-    decrypt(root, options).await?;
+pub async fn prepare(
+    root: &Path,
+    options: &Options,
+    bepinex: Option<&Path>,
+    force: bool,
+) -> Result<(), DynError> {
+    decrypt(root, options, force).await?;
 
     let exe = root.join("gakumas.exe");
     let exe_bak = root.join("gakumas.exe.bak");
-    if exe.is_file() && !exe_bak.is_file() {
-        fs::copy(&exe, &exe_bak)?;
+    if !exe_bak.is_file() || force || options.host.is_some() {
+        let host = find_host_binary(options.host.as_deref(), root)?;
+        if exe.is_file() && !exe_bak.is_file() {
+            fs::copy(&exe, &exe_bak)?;
+        }
+        fs::copy(&host, &exe)?;
     }
-    fs::copy(&host, &exe)?;
 
     if let Some(zip_path) = bepinex {
         extract_bepinex(zip_path, root)?;

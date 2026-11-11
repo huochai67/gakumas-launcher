@@ -25,6 +25,12 @@ pub fn safe_path(root: &Path, relative: &str) -> Result<PathBuf, DynError> {
     Ok(root.join(normalized))
 }
 
+fn backup_path(path: &Path) -> PathBuf {
+    let mut name = path.as_os_str().to_os_string();
+    name.push(".bak");
+    PathBuf::from(name)
+}
+
 pub async fn download_all(
     api: DmmClient,
     manifest: FileManifest,
@@ -107,7 +113,7 @@ pub async fn check_integrity(
             let needs_download = if force {
                 true
             } else {
-                !complete(&destination, &file).await?
+                !complete_or_backed_up(&destination, &file).await?
             };
             Ok::<_, DynError>((index, file, needs_download))
         });
@@ -146,7 +152,7 @@ async fn download_one(
     force: bool,
 ) -> Result<bool, DynError> {
     let destination = safe_path(root, &file.local_path)?;
-    if !force && complete(&destination, file).await? {
+    if !force && complete_or_backed_up(&destination, file).await? {
         return Ok(false);
     }
     if let Some(parent) = destination.parent() {
@@ -173,8 +179,17 @@ async fn download_one(
     {
         return Err(format!("hash mismatch for {}", file.local_path).into());
     }
+    let _ = tokio::fs::remove_file(backup_path(&destination)).await;
     temporary.persist(&destination)?;
     Ok(true)
+}
+
+async fn complete_or_backed_up(path: &Path, file: &FileEntry) -> Result<bool, DynError> {
+    let bak = backup_path(path);
+    if bak.is_file() {
+        return complete(&bak, file).await;
+    }
+    complete(path, file).await
 }
 
 async fn complete(path: &Path, file: &FileEntry) -> Result<bool, DynError> {

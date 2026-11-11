@@ -13,26 +13,35 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use client::{DmmClient, DynError};
-use models::{FileManifest, LaunchInfo, StoredSession};
-use serde::Serialize;
+use models::{FileManifest, StoredSession};
 
 const DEFAULT_API_BASE_URL: &str = "https://apidgp-gameplayer.games.dmm.com";
+const PRODUCT_ID: &str = "gakumas";
+const GAME_TYPE: &str = "GCL";
 
 #[derive(Debug, Parser)]
-#[command(name = "gakumas-launcher", version, about = "Gakumas DMM downloader, profile decryptor, and launcher")]
+#[command(
+    name = "gakumas-launcher",
+    version,
+    about = "Gakumas launcher: run without arguments to automatically login, download, decrypt, and launch"
+)]
 struct Cli {
     #[arg(long, global = true, default_value = "game")]
     dir: PathBuf,
+    #[arg(long, global = true, default_value_t = 8, alias = "concurrency")]
+    jobs: usize,
     #[arg(long, global = true)]
-    product_id: Option<String>,
-    #[arg(long, global = true, default_value = "GCL")]
-    game_type: String,
+    force: bool,
+    #[arg(long, global = true)]
+    dry_run: bool,
+    #[arg(long, global = true)]
+    bepinex: Option<PathBuf>,
     #[arg(long, global = true, env = "DMM_API_BASE_URL", default_value = DEFAULT_API_BASE_URL)]
     api_base_url: String,
     #[command(flatten)]
     runtime: runtime::Options,
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -42,46 +51,10 @@ enum Commands {
         code: Option<String>,
     },
     Logout,
-    Games {
-        #[arg(long)]
-        json: bool,
-    },
-    Manifest,
-    Download {
-        #[arg(long, default_value_t = 8, alias = "concurrency")]
-        jobs: usize,
-        #[arg(long)]
-        force: bool,
-        #[arg(long)]
-        dry_run: bool,
-    },
+    Download,
     Decrypt,
-    Prepare {
-        #[arg(long, default_value_t = 8, alias = "concurrency")]
-        jobs: usize,
-        #[arg(long)]
-        force: bool,
-        #[arg(long)]
-        bepinex: Option<PathBuf>,
-    },
-    Launch {
-        #[arg(long)]
-        dry_run: bool,
-    },
-}
-
-#[derive(Serialize)]
-struct PublicFile {
-    path: String,
-    size: u64,
-    hash: Option<String>,
-    check_hash: bool,
-}
-
-#[derive(Serialize)]
-struct PublicManifest {
-    version: String,
-    files: Vec<PublicFile>,
+    Prepare,
+    Launch,
 }
 
 #[tokio::main]
@@ -98,132 +71,84 @@ async fn main() {
 
 async fn run() -> Result<(), DynError> {
     let cli = Cli::parse();
-    if let Commands::Decrypt = &cli.command {
+    if let Some(Commands::Decrypt) = &cli.command {
         fs::create_dir_all(&cli.dir)?;
         let root = fs::canonicalize(&cli.dir)?;
-        return runtime::decrypt(&root, &cli.runtime).await;
+        return runtime::decrypt(&root, &cli.runtime, cli.force).await;
     }
-
-    let product_id = match &cli.command {
-        Commands::Manifest
-        | Commands::Download { .. }
-        | Commands::Prepare { .. }
-        | Commands::Launch { .. } => Some(
-            cli.product_id
-                .as_deref()
-                .filter(|id| !id.trim().is_empty())
-                .ok_or("--product-id is required; run `gakumas-launcher games` to view product IDs")?,
-        ),
-        _ => None,
-    };
 
     let store = token::TokenStore::new()?;
     let session = store.load()?;
     let mut api = DmmClient::new(&cli.api_base_url, session.map(|s| s.token))?;
 
     match &cli.command {
-        Commands::Login { code } => login(&mut api, &store, code.as_deref()).await?,
-        Commands::Logout => {
+        Some(Commands::Login { code }) => {
+            login(&mut api, &store, code.as_deref()).await?;
+        }
+        Some(Commands::Logout) => {
             let res = if api.token().is_some() { api.logout().await } else { Ok(()) };
             store.delete()?;
             res?;
             println!("Logged out.");
         }
-        Commands::Games { json } => {
-            ensure_session(&api).await?;
-            let games = api.games().await?;
-            if *json {
-                println!("{}", serde_json::to_string(&games)?);
-            } else {
-                for game in games {
-                    println!(
-                        "{}\t{}\t{}\t{}",
-                        game.product_id,
-                        game.game_type,
-                        game.game_os,
-                        game.title.unwrap_or_default()
-                    );
-                }
-            }
-        }
-        Commands::Manifest => {
-            let (info, manifest) = install_manifest(&api, product_id.unwrap(), &cli.game_type).await?;
-            let version = info
-                .latest_version
-                .filter(|v| !v.is_empty())
-                .ok_or("install API returned no version")?;
-            let mut files = manifest
-                .files
-                .into_iter()
-                .map(|file| {
-                    let rel = download::safe_path(Path::new(""), &file.local_path)?;
-                    Ok(PublicFile {
-                        path: rel.to_string_lossy().replace('\\', "/"),
-                        size: file.size,
-                        hash: file.hash,
-                        check_hash: file.check_hash,
-                    })
-                })
-                .collect::<Result<Vec<_>, DynError>>()?;
-            files.sort_by(|a, b| a.path.cmp(&b.path));
-            println!("{}", serde_json::to_string(&PublicManifest { version, files })?);
-        }
-        Commands::Download { jobs, force, dry_run } => {
-            let (_, manifest) = install_manifest(&api, product_id.unwrap(), &cli.game_type).await?;
+        Some(Commands::Download) => {
+            ensure_logged_in(&mut api, &store).await?;
+            let manifest = install_manifest(&api).await?;
             fs::create_dir_all(&cli.dir)?;
             let root = fs::canonicalize(&cli.dir)?;
-            runtime::restore_backups(&root)?;
-            if *dry_run {
-                download::dry_run(manifest, root, *force, *jobs).await?;
+            if cli.dry_run {
+                download::dry_run(manifest, root, cli.force, cli.jobs).await?;
             } else {
-                download::download_all(api, manifest, root, *force, *jobs).await?;
+                download::download_all(api, manifest, root, cli.force, cli.jobs).await?;
             }
         }
-        Commands::Prepare { jobs, force, bepinex } => {
-            let (_, manifest) = install_manifest(&api, product_id.unwrap(), &cli.game_type).await?;
+        Some(Commands::Prepare) => {
+            ensure_logged_in(&mut api, &store).await?;
+            let manifest = install_manifest(&api).await?;
             fs::create_dir_all(&cli.dir)?;
             let root = fs::canonicalize(&cli.dir)?;
-            runtime::restore_backups(&root)?;
-            download::download_all(api, manifest, root.clone(), *force, *jobs).await?;
-            runtime::prepare(&root, &cli.runtime, bepinex.as_deref()).await?;
+            download::download_all(api, manifest, root.clone(), cli.force, cli.jobs).await?;
+            runtime::prepare(&root, &cli.runtime, cli.bepinex.as_deref(), cli.force).await?;
         }
-        Commands::Launch { dry_run } => {
+        Some(Commands::Launch) => {
+            ensure_logged_in(&mut api, &store).await?;
             let root = fs::canonicalize(&cli.dir)?;
-            ensure_session(&api).await?;
-            let hardware = hardware::collect().await?;
-            let info = api.launch_info(product_id.unwrap(), &cli.game_type, &hardware).await?;
-            if let Some(token) = &info.access_token_info {
-                store.save(&StoredSession {
-                    token: token.clone(),
-                    stored_at: timestamp(),
-                })?;
-            }
-            launch(&root, &cli.runtime, info, *dry_run).await?;
+            launch_game(&api, &store, &root, &cli.runtime, cli.dry_run).await?;
         }
-        Commands::Decrypt => unreachable!(),
+        Some(Commands::Decrypt) => unreachable!(),
+        None => {
+            ensure_logged_in(&mut api, &store).await?;
+            let manifest = install_manifest(&api).await?;
+            fs::create_dir_all(&cli.dir)?;
+            let root = fs::canonicalize(&cli.dir)?;
+            download::download_all(api.clone(), manifest, root.clone(), cli.force, cli.jobs).await?;
+            runtime::prepare(&root, &cli.runtime, cli.bepinex.as_deref(), cli.force).await?;
+            launch_game(&api, &store, &root, &cli.runtime, cli.dry_run).await?;
+        }
     }
     Ok(())
 }
 
-async fn install_manifest(
-    api: &DmmClient,
-    product_id: &str,
-    game_type: &str,
-) -> Result<(LaunchInfo, FileManifest), DynError> {
-    ensure_session(api).await?;
+async fn install_manifest(api: &DmmClient) -> Result<FileManifest, DynError> {
     let hardware = hardware::collect().await?;
-    let info = api.install_info(product_id, game_type, &hardware).await?;
+    let info = api.install_info(PRODUCT_ID, GAME_TYPE, &hardware).await?;
+    if let Some(version) = &info.latest_version {
+        println!("Gakumas version: {version}");
+    }
     if info.file_list_url.is_empty() {
         return Err("install API returned no file_list_url".into());
     }
-    let manifest = api.file_manifest(&info.file_list_url, info.sign.as_deref()).await?;
-    Ok((info, manifest))
+    api.file_manifest(&info.file_list_url, info.sign.as_deref()).await
 }
 
-async fn ensure_session(api: &DmmClient) -> Result<(), DynError> {
+async fn ensure_logged_in(api: &mut DmmClient, store: &token::TokenStore) -> Result<(), DynError> {
     api.startup().await?;
-    let token = api.token().ok_or("Not logged in. Run `gakumas-launcher login` first.")?;
-    api.check_token(token).await
+    if let Some(token) = api.token() {
+        if api.check_token(token).await.is_ok() {
+            return Ok(());
+        }
+    }
+    login(api, store, None).await
 }
 
 async fn login(
@@ -304,12 +229,21 @@ fn split_args(input: &str) -> Vec<String> {
     result
 }
 
-async fn launch(
+async fn launch_game(
+    api: &DmmClient,
+    store: &token::TokenStore,
     root: &Path,
     options: &runtime::Options,
-    info: LaunchInfo,
     dry_run: bool,
 ) -> Result<(), DynError> {
+    let hardware = hardware::collect().await?;
+    let info = api.launch_info(PRODUCT_ID, GAME_TYPE, &hardware).await?;
+    if let Some(token) = &info.access_token_info {
+        store.save(&StoredSession {
+            token: token.clone(),
+            stored_at: timestamp(),
+        })?;
+    }
     let executable = root.join("gakumas.exe");
     if !dry_run && !executable.is_file() {
         return Err(format!("missing executable: {}", executable.display()).into());
