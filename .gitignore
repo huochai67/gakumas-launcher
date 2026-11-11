@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.venv/
+launcher/target/
+*.dmm-part
+*.dll
+*.exe
+*.zip
+# Profiles contain named .bin materials and JSON, not game binaries.

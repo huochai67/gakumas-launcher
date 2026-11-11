@@ -1,0 +1,42 @@
+name: Build launcher
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'launcher/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    paths:
+      - 'launcher/**'
+      - '.github/workflows/build.yml'
+permissions:
+  contents: read
+jobs:
+  launcher:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            extension: ''
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            extension: '.exe'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build launcher
+        run: cargo build --release --locked --manifest-path launcher/Cargo.toml --bin gakumas-launcher --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gakumas-launcher-${{ matrix.target }}
+          path: launcher/target/${{ matrix.target }}/release/gakumas-launcher${{ matrix.extension }}
+      - name: Build Windows native host (gakumas.exe)
+        if: runner.os == 'Windows'
+        run: cargo build --release --locked --manifest-path launcher/Cargo.toml --bin gakumas --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: gakumas-windows-x64
+          path: launcher/target/${{ matrix.target }}/release/gakumas.exe

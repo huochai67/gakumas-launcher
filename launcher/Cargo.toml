@@ -1,0 +1,32 @@
+[package]
+name = "gakumas-launcher"
+version = "0.1.0"
+edition = "2024"
+default-run = "gakumas-launcher"
+
+[[bin]]
+name = "gakumas-launcher"
+path = "src/main.rs"
+
+[[bin]]
+name = "gakumas"
+path = "src/bin/host.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive", "env"] }
+futures-util = "0.3"
+getrandom = "0.2"
+hex = "0.4"
+md-5 = "0.10"
+reqwest = { version = "0.12", default-features = false, features = ["brotli", "deflate", "gzip", "json", "rustls-tls", "stream"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha1 = "0.10"
+sha2 = "0.10"
+tempfile = "3"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt-multi-thread", "signal", "sync"] }
+url = "2.5"
+zip = { version = "2.4", default-features = false, features = ["deflate"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_System_Memory", "Win32_System_LibraryLoader", "Win32_System_Environment"] }

@@ -1,0 +1,854 @@
+[
+  {
+    "dll": "ADVAPI32.dll",
+    "first_thunk": 136998912,
+    "imports": [
+      {
+        "name": "EventActivityIdControl"
+      },
+      {
+        "name": "GetDynamicTimeZoneInformationEffectiveYears"
+      },
+      {
+        "name": "EventRegister"
+      },
+      {
+        "name": "EventUnregister"
+      },
+      {
+        "name": "EventSetInformation"
+      },
+      {
+        "name": "EventWrite"
+      },
+      {
+        "name": "EventWriteTransfer"
+      },
+      {
+        "name": "EventWriteEx"
+      },
+      {
+        "name": "GetUserNameW"
+      },
+      {
+        "name": "EnumerateTraceGuidsEx"
+      },
+      {
+        "name": "EnumDynamicTimeZoneInformation"
+      },
+      {
+        "name": "EventWriteString"
+      }
+    ]
+  },
+  {
+    "dll": "IPHLPAPI.DLL",
+    "first_thunk": 136999016,
+    "imports": [
+      {
+        "name": "GetIfEntry"
+      },
+      {
+        "name": "GetAdaptersAddresses"
+      },
+      {
+        "name": "GetNetworkParams"
+      }
+    ]
+  },
+  {
+    "dll": "KERNEL32.dll",
+    "first_thunk": 136999048,
+    "imports": [
+      {
+        "name": "SetFileAttributesW"
+      },
+      {
+        "name": "SetFileInformationByHandle"
+      },
+      {
+        "name": "SetFilePointerEx"
+      },
+      {
+        "name": "WriteFile"
+      },
+      {
+        "name": "CloseHandle"
+      },
+      {
+        "name": "DuplicateHandle"
+      },
+      {
+        "name": "SetThreadErrorMode"
+      },
+      {
+        "name": "CreatePipe"
+      },
+      {
+        "name": "GetOverlappedResult"
+      },
+      {
+        "name": "CancelIoEx"
+      },
+      {
+        "name": "GetCurrentProcessId"
+      },
+      {
+        "name": "GetCurrentThread"
+      },
+      {
+        "name": "GetThreadDescription"
+      },
+      {
+        "name": "GetNativeSystemInfo"
+      },
+      {
+        "name": "LocalAlloc"
+      },
+      {
+        "name": "LocalReAlloc"
+      },
+      {
+        "name": "LocalFree"
+      },
+      {
+        "name": "FormatMessageW"
+      },
+      {
+        "name": "CopyFileExW"
+      },
+      {
+        "name": "CopyFile2"
+      },
+      {
+        "name": "MoveFileExW"
+      },
+      {
+        "name": "ReplaceFileW"
+      },
+      {
+        "name": "GetTimeZoneInformation"
+      },
+      {
+        "name": "GetDynamicTimeZoneInformation"
+      },
+      {
+        "name": "GetTimeZoneInformationForYear"
+      },
+      {
+        "name": "GetFileInformationByHandleEx"
+      },
+      {
+        "name": "MultiByteToWideChar"
+      },
+      {
+        "name": "GetConsoleMode"
+      },
+      {
+        "name": "GetLongPathNameW"
+      },
+      {
+        "name": "GetTempPathW"
+      },
+      {
+        "name": "GetModuleFileNameA"
+      },
+      {
+        "name": "GetModuleFileNameW"
+      },
+      {
+        "name": "WideCharToMultiByte"
+      },
+      {
+        "name": "GetACP"
+      },
+      {
+        "name": "GetLocaleInfoW"
+      },
+      {
+        "name": "GetThreadLocale"
+      },
+      {
+        "name": "InitOnceInitialize"
+      },
+      {
+        "name": "ReleaseSRWLockExclusive"
+      },
+      {
+        "name": "ReleaseSRWLockShared"
+      },
+      {
+        "name": "AcquireSRWLockExclusive"
+      },
+      {
+        "name": "AcquireSRWLockShared"
+      },
+      {
+        "name": "InitializeCriticalSection"
+      },
+      {
+        "name": "EnterCriticalSection"
+      },
+      {
+        "name": "LeaveCriticalSection"
+      },
+      {
+        "name": "DeleteCriticalSection"
+      },
+      {
+        "name": "GetCurrentDirectoryW"
+      },
+      {
+        "name": "FindClose"
+      },
+      {
+        "name": "IsDebuggerPresent"
+      },
+      {
+        "name": "OutputDebugStringW"
+      },
+      {
+        "name": "Sleep"
+      },
+      {
+        "name": "GetCurrentProcess"
+      },
+      {
+        "name": "GetExitCodeProcess"
+      },
+      {
+        "name": "SwitchToThread"
+      },
+      {
+        "name": "GetSystemInfo"
+      },
+      {
+        "name": "VirtualAlloc"
+      },
+      {
+        "name": "VirtualQuery"
+      },
+      {
+        "name": "CreateFileMappingW"
+      },
+      {
+        "name": "OpenFileMappingW"
+      },
+      {
+        "name": "MapViewOfFile"
+      },
+      {
+        "name": "UnmapViewOfFile"
+      },
+      {
+        "name": "K32GetModuleBaseNameW"
+      },
+      {
+        "name": "RtlCaptureStackBackTrace"
+      },
+      {
+        "name": "RaiseException"
+      },
+      {
+        "name": "SetLastError"
+      },
+      {
+        "name": "CreateThread"
+      },
+      {
+        "name": "GetCurrentThreadId"
+      },
+      {
+        "name": "SetThreadPriority"
+      },
+      {
+        "name": "GetThreadPriority"
+      },
+      {
+        "name": "SetThreadDescription"
+      },
+      {
+        "name": "GlobalAlloc"
+      },
+      {
+        "name": "RemoveDirectoryW"
+      },
+      {
+        "name": "GetEnvironmentStringsW"
+      },
+      {
+        "name": "FreeEnvironmentStringsW"
+      },
+      {
+        "name": "GetEnvironmentVariableW"
+      },
+      {
+        "name": "SetEnvironmentVariableW"
+      },
+      {
+        "name": "QueryPerformanceCounter"
+      },
+      {
+        "name": "QueryPerformanceFrequency"
+      },
+      {
+        "name": "InitializeConditionVariable"
+      },
+      {
+        "name": "WakeAllConditionVariable"
+      },
+      {
+        "name": "SleepConditionVariableCS"
+      },
+      {
+        "name": "GetSystemTimes"
+      },
+      {
+        "name": "GetSystemTimeAsFileTime"
+      },
+      {
+        "name": "GetVersionExW"
+      },
+      {
+        "name": "GetComputerNameW"
+      },
+      {
+        "name": "SetFilePointer"
+      },
+      {
+        "name": "SuspendThread"
+      },
+      {
+        "name": "ResumeThread"
+      },
+      {
+        "name": "GetThreadContext"
+      },
+      {
+        "name": "VirtualFree"
+      },
+      {
+        "name": "GetModuleHandleW"
+      },
+      {
+        "name": "GetProcAddress"
+      },
+      {
+        "name": "WriteConsoleW"
+      },
+      {
+        "name": "SetStdHandle"
+      },
+      {
+        "name": "GetProcessHeap"
+      },
+      {
+        "name": "GetCommandLineW"
+      },
+      {
+        "name": "GetCommandLineA"
+      },
+      {
+        "name": "HeapQueryInformation"
+      },
+      {
+        "name": "HeapSize"
+      },
+      {
+        "name": "ReadFile"
+      },
+      {
+        "name": "GetLogicalDrives"
+      },
+      {
+        "name": "GetFullPathNameW"
+      },
+      {
+        "name": "GetFileType"
+      },
+      {
+        "name": "GetFileSizeEx"
+      },
+      {
+        "name": "GetFileAttributesExW"
+      },
+      {
+        "name": "FlushFileBuffers"
+      },
+      {
+        "name": "FindNextFileW"
+      },
+      {
+        "name": "FindFirstFileExW"
+      },
+      {
+        "name": "DeleteVolumeMountPointW"
+      },
+      {
+        "name": "DeleteFileW"
+      },
+      {
+        "name": "CreateFileW"
+      },
+      {
+        "name": "ReadConsoleW"
+      },
+      {
+        "name": "GetConsoleOutputCP"
+      },
+      {
+        "name": "GetOEMCP"
+      },
+      {
+        "name": "IsValidCodePage"
+      },
+      {
+        "name": "EnumSystemLocalesW"
+      },
+      {
+        "name": "GetUserDefaultLCID"
+      },
+      {
+        "name": "IsValidLocale"
+      },
+      {
+        "name": "LCMapStringW"
+      },
+      {
+        "name": "RtlUnwind"
+      },
+      {
+        "name": "CompareStringW"
+      },
+      {
+        "name": "FlsFree"
+      },
+      {
+        "name": "FlsSetValue"
+      },
+      {
+        "name": "FlsGetValue"
+      },
+      {
+        "name": "FlsAlloc"
+      },
+      {
+        "name": "HeapReAlloc"
+      },
+      {
+        "name": "HeapAlloc"
+      },
+      {
+        "name": "HeapFree"
+      },
+      {
+        "name": "GetModuleHandleExW"
+      },
+      {
+        "name": "ExitProcess"
+      },
+      {
+        "name": "LoadLibraryExW"
+      },
+      {
+        "name": "FreeLibrary"
+      },
+      {
+        "name": "InitializeCriticalSectionAndSpinCount"
+      },
+      {
+        "name": "CreateDirectoryW"
+      },
+      {
+        "name": "GetStdHandle"
+      },
+      {
+        "name": "GetLastError"
+      },
+      {
+        "name": "TlsFree"
+      },
+      {
+        "name": "TlsSetValue"
+      },
+      {
+        "name": "InterlockedFlushSList"
+      },
+      {
+        "name": "RtlUnwindEx"
+      },
+      {
+        "name": "TerminateProcess"
+      },
+      {
+        "name": "IsProcessorFeaturePresent"
+      },
+      {
+        "name": "GetStartupInfoW"
+      },
+      {
+        "name": "SetUnhandledExceptionFilter"
+      },
+      {
+        "name": "UnhandledExceptionFilter"
+      },
+      {
+        "name": "RtlVirtualUnwind"
+      },
+      {
+        "name": "RtlLookupFunctionEntry"
+      },
+      {
+        "name": "RtlCaptureContext"
+      },
+      {
+        "name": "InitializeSListHead"
+      },
+      {
+        "name": "SleepConditionVariableSRW"
+      },
+      {
+        "name": "GetCPInfo"
+      },
+      {
+        "name": "GetStringTypeW"
+      },
+      {
+        "name": "LCMapStringEx"
+      },
+      {
+        "name": "DecodePointer"
+      },
+      {
+        "name": "EncodePointer"
+      },
+      {
+        "name": "InitializeCriticalSectionEx"
+      },
+      {
+        "name": "RtlPcToFileHeader"
+      },
+      {
+        "name": "SetEndOfFile"
+      },
+      {
+        "name": "TlsGetValue"
+      },
+      {
+        "name": "GlobalFree"
+      },
+      {
+        "name": "TlsAlloc"
+      }
+    ]
+  },
+  {
+    "dll": "OLEAUT32.dll",
+    "first_thunk": 137000336,
+    "imports": [
+      {
+        "ordinal": 7
+      },
+      {
+        "ordinal": 15
+      },
+      {
+        "ordinal": 16
+      },
+      {
+        "ordinal": 77
+      },
+      {
+        "ordinal": 24
+      },
+      {
+        "ordinal": 23
+      },
+      {
+        "ordinal": 20
+      },
+      {
+        "ordinal": 4
+      },
+      {
+        "ordinal": 19
+      },
+      {
+        "ordinal": 17
+      },
+      {
+        "ordinal": 6
+      }
+    ]
+  },
+  {
+    "dll": "SHELL32.dll",
+    "first_thunk": 137000432,
+    "imports": [
+      {
+        "name": "SHGetKnownFolderPath"
+      },
+      {
+        "name": "SHGetFolderPathW"
+      }
+    ]
+  },
+  {
+    "dll": "USER32.dll",
+    "first_thunk": 137000456,
+    "imports": [
+      {
+        "name": "MessageBoxA"
+      }
+    ]
+  },
+  {
+    "dll": "WS2_32.dll",
+    "first_thunk": 137000472,
+    "imports": [
+      {
+        "ordinal": 115
+      },
+      {
+        "ordinal": 116
+      },
+      {
+        "ordinal": 57
+      },
+      {
+        "ordinal": 51
+      },
+      {
+        "name": "inet_pton"
+      },
+      {
+        "name": "getnameinfo"
+      },
+      {
+        "name": "freeaddrinfo"
+      },
+      {
+        "name": "getaddrinfo"
+      },
+      {
+        "name": "WSAPoll"
+      },
+      {
+        "name": "WSASend"
+      },
+      {
+        "name": "WSARecv"
+      },
+      {
+        "name": "WSAIoctl"
+      },
+      {
+        "name": "inet_ntop"
+      },
+      {
+        "ordinal": 151
+      },
+      {
+        "ordinal": 1
+      },
+      {
+        "ordinal": 2
+      },
+      {
+        "ordinal": 3
+      },
+      {
+        "ordinal": 4
+      },
+      {
+        "ordinal": 10
+      },
+      {
+        "ordinal": 5
+      },
+      {
+        "ordinal": 6
+      },
+      {
+        "ordinal": 7
+      },
+      {
+        "ordinal": 8
+      },
+      {
+        "ordinal": 9
+      },
+      {
+        "ordinal": 11
+      },
+      {
+        "ordinal": 12
+      },
+      {
+        "ordinal": 13
+      },
+      {
+        "ordinal": 23
+      },
+      {
+        "ordinal": 22
+      },
+      {
+        "ordinal": 21
+      },
+      {
+        "ordinal": 19
+      },
+      {
+        "ordinal": 18
+      },
+      {
+        "ordinal": 17
+      },
+      {
+        "ordinal": 15
+      },
+      {
+        "ordinal": 14
+      },
+      {
+        "ordinal": 111
+      }
+    ]
+  },
+  {
+    "dll": "api-ms-win-core-winrt-error-l1-1-0.dll",
+    "first_thunk": 137000768,
+    "imports": [
+      {
+        "name": "GetRestrictedErrorInfo"
+      },
+      {
+        "name": "RoSetErrorReportingFlags"
+      }
+    ]
+  },
+  {
+    "dll": "bcrypt.dll",
+    "first_thunk": 137000968,
+    "imports": [
+      {
+        "name": "BCryptGenRandom"
+      }
+    ]
+  },
+  {
+    "dll": "api-ms-win-core-winrt-l1-1-0.dll",
+    "first_thunk": 137000792,
+    "imports": [
+      {
+        "name": "RoGetActivationFactory"
+      }
+    ]
+  },
+  {
+    "dll": "api-ms-win-core-winrt-string-l1-1-0.dll",
+    "first_thunk": 137000824,
+    "imports": [
+      {
+        "name": "WindowsGetStringRawBuffer"
+      },
+      {
+        "name": "WindowsDuplicateString"
+      },
+      {
+        "name": "WindowsDeleteString"
+      },
+      {
+        "name": "WindowsCreateStringReference"
+      }
+    ]
+  },
+  {
+    "dll": "baselib.dll",
+    "first_thunk": 137000864,
+    "imports": [
+      {
+        "name": "?Baselib_DynamicLibrary_Close@il2cpp_baselib@@YAXUBaselib_DynamicLibrary_Handle@1@@Z"
+      },
+      {
+        "name": "?Baselib_SystemFutex_Wait@il2cpp_baselib@@YAXPEAHHI@Z"
+      },
+      {
+        "name": "?Baselib_SystemFutex_Notify@il2cpp_baselib@@YAXPEAHIW4Baselib_WakeupFallbackStrategy@1@@Z"
+      },
+      {
+        "name": "?Baselib_DynamicLibrary_FromNativeHandle@il2cpp_baselib@@YA?AUBaselib_DynamicLibrary_Handle@1@_KIPEAUBaselib_ErrorState@1@@Z"
+      },
+      {
+        "name": "?Baselib_DynamicLibrary_OpenUtf16@il2cpp_baselib@@YA?AUBaselib_DynamicLibrary_Handle@1@PEBGPEAUBaselib_ErrorState@1@@Z"
+      },
+      {
+        "name": "?Baselib_DynamicLibrary_GetFunction@il2cpp_baselib@@YAPEAXUBaselib_DynamicLibrary_Handle@1@PEBDPEAUBaselib_ErrorState@1@@Z"
+      },
+      {
+        "name": "?Baselib_Timer_TickToNanosecondsConversionFactor@il2cpp_baselib@@3NB"
+      },
+      {
+        "name": "?Baselib_Thread_GetCurrentThreadId@il2cpp_baselib@@YA_JXZ"
+      },
+      {
+        "name": "?Detail_Baselib_Cpu_FeatureData_CpuIdArray@il2cpp_baselib@@3QBUDetail_Baselib_Cpu_FeatureData_CpuId@1@B"
+      },
+      {
+        "name": "?Baselib_Timer_GetHighPrecisionTimerTicks@il2cpp_baselib@@YA_KXZ"
+      },
+      {
+        "name": "?Baselib_Thread_YieldExecution@il2cpp_baselib@@YAXXZ"
+      },
+      {
+        "name": "?Baselib_ErrorState_Explain@il2cpp_baselib@@YAIPEBUBaselib_ErrorState@1@QEADIW4Baselib_ErrorState_ExplainVerbosity@1@@Z"
+      }
+    ]
+  },
+  {
+    "dll": "api-ms-win-core-winrt-robuffer-l1-1-0.dll",
+    "first_thunk": 137000808,
+    "imports": [
+      {
+        "name": "RoGetBufferMarshaler"
+      }
+    ]
+  },
+  {
+    "dll": "dbghelp.dll",
+    "first_thunk": 137000984,
+    "imports": [
+      {
+        "name": "SymInitialize"
+      },
+      {
+        "name": "SymFromAddr"
+      }
+    ]
+  },
+  {
+    "dll": "ole32.dll",
+    "first_thunk": 137001008,
+    "imports": [
+      {
+        "name": "CoTaskMemFree"
+      },
+      {
+        "name": "CoUninitialize"
+      },
+      {
+        "name": "CoInitializeEx"
+      },
+      {
+        "name": "CoGetApartmentType"
+      },
+      {
+        "name": "CoTaskMemAlloc"
+      },
+      {
+        "name": "CoCreateFreeThreadedMarshaler"
+      }
+    ]
+  }
+]
