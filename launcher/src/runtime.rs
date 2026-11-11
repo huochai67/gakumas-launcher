@@ -1,26 +1,24 @@
 use std::{
     fs,
-    io::Read,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
 use clap::Args;
 use sha2::{Digest, Sha256};
 
-use crate::{client::DynError, download::safe_path, models::AppConfig, profile};
+use crate::{client::DynError, decrypt, download::safe_path, models::AppConfig, profile, token};
 
 #[derive(Debug, Args)]
 pub struct Options {
-    #[arg(long, global = true, default_value = if cfg!(windows) { "python" } else { "python3" })]
-    pub python: PathBuf,
-    #[arg(long, global = true)]
-    pub decrypt_script: Option<PathBuf>,
     #[arg(long, global = true, conflicts_with = "profile_base_url")]
     pub profile: Option<PathBuf>,
     #[arg(long, global = true, env = "GAKUMAS_PROFILE_BASE_URL", conflicts_with = "profile")]
     pub profile_base_url: Option<String>,
     #[arg(long, global = true)]
     pub host: Option<PathBuf>,
+    #[arg(long, global = true)]
+    pub host_url: Option<String>,
     #[arg(long, global = true)]
     pub wine: Option<PathBuf>,
     #[arg(long, global = true, env = "WINEPREFIX")]
@@ -34,6 +32,9 @@ impl Options {
         }
         if self.host.is_none() {
             self.host = config.host.clone();
+        }
+        if self.host_url.is_none() {
+            self.host_url = config.host_url.clone();
         }
         if self.wine.is_none() {
             self.wine = config.wine.clone();
@@ -62,29 +63,40 @@ pub fn sha256(path: &Path) -> Result<String, DynError> {
     Ok(hex::encode(hash.finalize()))
 }
 
-fn find_decrypt_script(explicit: Option<&Path>) -> Result<PathBuf, DynError> {
-    if let Some(path) = explicit {
-        return Ok(fs::canonicalize(path)?);
+fn candidate_host_urls(options: &Options) -> Vec<String> {
+    let mut urls = Vec::new();
+    if let Some(url) = &options.host_url {
+        urls.push(url.clone());
     }
-    let mut candidates = vec![PathBuf::from("decrypt.py"), PathBuf::from("public/decrypt.py")];
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            candidates.push(parent.join("decrypt.py"));
-            candidates.push(parent.join("../decrypt.py"));
+    if let Some(base) = &options.profile_base_url {
+        let trimmed = base.trim_end_matches('/');
+        if let Some(rest) = trimmed.strip_prefix("https://raw.githubusercontent.com/") {
+            let parts: Vec<&str> = rest.split('/').collect();
+            if parts.len() >= 2 {
+                urls.push(format!(
+                    "https://github.com/{}/{}/releases/latest/download/gakumas.exe",
+                    parts[0], parts[1]
+                ));
+            }
+        } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
+            let parts: Vec<&str> = rest.split('/').collect();
+            if parts.len() >= 2 {
+                urls.push(format!(
+                    "https://github.com/{}/{}/releases/latest/download/gakumas.exe",
+                    parts[0], parts[1]
+                ));
+            }
         }
+        urls.push(format!("{trimmed}/gakumas.exe"));
     }
-    for candidate in candidates {
-        if candidate.is_file() {
-            return Ok(fs::canonicalize(candidate)?);
-        }
-    }
-    Err("decrypt.py not found; pass --decrypt-script <PATH>".into())
+    urls
 }
 
-fn find_host_binary(explicit: Option<&Path>, game_root: &Path) -> Result<PathBuf, DynError> {
-    if let Some(path) = explicit {
+async fn resolve_host_binary(options: &Options, game_root: &Path) -> Result<PathBuf, DynError> {
+    if let Some(path) = &options.host {
         return Ok(fs::canonicalize(path)?);
     }
+
     let mut candidates = Vec::new();
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
@@ -92,20 +104,64 @@ fn find_host_binary(explicit: Option<&Path>, game_root: &Path) -> Result<PathBuf
         }
     }
     candidates.push(PathBuf::from("gakumas.exe"));
-    candidates.push(PathBuf::from("public/launcher/target/x86_64-pc-windows-msvc/release/gakumas.exe"));
-    candidates.push(PathBuf::from("public/launcher/target/x86_64-pc-windows-gnu/release/gakumas.exe"));
+    if let Ok(cfg_dir) = token::config_dir() {
+        candidates.push(cfg_dir.join("gakumas.exe"));
+    }
+    candidates.push(PathBuf::from(
+        "public/launcher/target/x86_64-pc-windows-msvc/release/gakumas.exe",
+    ));
+    candidates.push(PathBuf::from(
+        "public/launcher/target/x86_64-pc-windows-gnu/release/gakumas.exe",
+    ));
 
     let game_exe = game_root.join("gakumas.exe");
+    let game_exe_canon = fs::canonicalize(&game_exe).ok();
     for candidate in candidates {
         if candidate.is_file() {
             if let Ok(canon) = fs::canonicalize(&candidate) {
-                if fs::canonicalize(&game_exe).ok().as_ref() != Some(&canon) {
+                if game_exe_canon.as_ref() != Some(&canon) {
                     return Ok(canon);
                 }
             }
         }
     }
-    Err("host gakumas.exe not found; build `--bin gakumas` for Windows x64 or pass --host <PATH>".into())
+
+    #[cfg(windows)]
+    {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Ok(canon) = fs::canonicalize(&exe) {
+                if game_exe_canon.as_ref() != Some(&canon) {
+                    return Ok(canon);
+                }
+            }
+        }
+    }
+
+    let urls = candidate_host_urls(options);
+    if !urls.is_empty() {
+        let client = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .timeout(std::time::Duration::from_secs(60))
+            .build()?;
+        let dest = token::config_dir()?.join("gakumas.exe");
+        for url in &urls {
+            if let Ok(response) = client.get(url).send().await {
+                if response.status().is_success() {
+                    if let Ok(bytes) = response.bytes().await {
+                        if bytes.len() > 1024 && &bytes[0..2] == b"MZ" {
+                            let mut temp = tempfile::NamedTempFile::new_in(dest.parent().unwrap())?;
+                            temp.write_all(&bytes)?;
+                            temp.persist(&dest)?;
+                            println!("Downloaded host binary: {url} -> {}", dest.display());
+                            return Ok(dest);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Err("host gakumas.exe not found; place gakumas.exe in ~/.config/gakumas/gakumas.exe, configure profile_base_url/host_url, or pass --host <PATH>".into())
 }
 
 pub async fn decrypt(root: &Path, options: &Options, force: bool) -> Result<(), DynError> {
@@ -128,20 +184,9 @@ pub async fn decrypt(root: &Path, options: &Options, force: bool) -> Result<(), 
         &packed_hash,
     )
     .await?;
-    let script = find_decrypt_script(options.decrypt_script.as_deref())?;
 
-    let status = tokio::process::Command::new(&options.python)
-        .arg(script)
-        .arg(&packed)
-        .arg(&ga)
-        .arg("--profile")
-        .arg(source.path())
-        .status()
-        .await?;
-    if !status.success() {
-        return Err("profile decryption failed".into());
-    }
-    println!("Decrypted GameAssembly.dll: {}", ga.display());
+    let output_hash = decrypt::decrypt_with_profile(&packed, &ga, source.path())?;
+    println!("Decrypted GameAssembly.dll (SHA-256: {output_hash}): {}", ga.display());
     Ok(())
 }
 
@@ -156,7 +201,7 @@ pub async fn prepare(
     let exe = root.join("gakumas.exe");
     let exe_bak = root.join("gakumas.exe.bak");
     if !exe_bak.is_file() || force || options.host.is_some() {
-        let host = find_host_binary(options.host.as_deref(), root)?;
+        let host = resolve_host_binary(options, root).await?;
         if exe.is_file() && !exe_bak.is_file() {
             fs::copy(&exe, &exe_bak)?;
         }

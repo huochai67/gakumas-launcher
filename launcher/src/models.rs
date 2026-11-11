@@ -25,6 +25,7 @@ pub struct AppConfig {
     pub profile_base_url: Option<String>,
     pub bepinex: Option<PathBuf>,
     pub host: Option<PathBuf>,
+    pub host_url: Option<String>,
     pub wine: Option<PathBuf>,
     pub wine_prefix: Option<PathBuf>,
 }

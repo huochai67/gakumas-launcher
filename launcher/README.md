@@ -1,27 +1,12 @@
 # gakumas-launcher 启动器
 
-《学园偶像大师》（Gakumas）专用命令行启动器（Rust），支持 x64 Windows 与 Linux（通过 Wine 启动）。包含两个二进制目标：
+《学园偶像大师》（Gakumas）专用命令行启动器（Rust），支持 x64 Windows 与 Linux（通过 Wine 启动）。
 
-- **`gakumas-launcher`**：命令行启动器，无参数直接运行时自动完成 **登录 → 下载/校验更新 → 使用 Profile 脱壳 → 部署宿主 → 启动游戏** 全流程。
-- **`gakumas`（编译为 `gakumas.exe`）**：无完整性壳的自定义 Windows x64 Unity 启动宿主，替换官方 `gakumas.exe` 直接引导脱壳后的 `GameAssembly.dll` 与 `UnityPlayer.dll`。
+## 架构特性
 
-## 构建
-
-构建启动器 CLI（`gakumas-launcher`）：
-
-```sh
-cargo build --release --manifest-path public/launcher/Cargo.toml --bin gakumas-launcher
-```
-
-构建 Windows x64 启动宿主（`gakumas.exe`）：
-
-```sh
-# Windows (MSVC)
-cargo build --release --manifest-path public/launcher/Cargo.toml --target x86_64-pc-windows-msvc --bin gakumas
-
-# Linux 交叉编译 (MinGW-w64)
-cargo build --release --manifest-path public/launcher/Cargo.toml --target x86_64-pc-windows-gnu --bin gakumas
-```
+- **内置纯 Rust 静态脱壳引擎（`src/decrypt.rs`）**：无需安装 Python 或 `pycryptodome`，直接根据版本 Profile（`key.bin`、`sbox.bin`、`pass3.bin`、`records.bin`）在内存中完成 `GameAssembly.dll` 解密、Il2Cpp 注册结构对齐与 `.idata`/CRT 入口重建。
+- **Windows 单二进制自举（`src/host.rs`）**：Windows 下 `gakumas-launcher.exe` 自身内置无壳 Unity 启动宿主逻辑；被复制为游戏目录下的 `gakumas.exe` 启动时会自动进入 Unity 宿主模式（加载 `GameAssembly.dll` 与 `UnityPlayer.dll!UnityMain`），无需额外可执行文件。
+- **Linux / Wine 自动获取与缓存宿主 `gakumas.exe`**：按 `--host` → 启动器同级目录 → `$HOME/.config/gakumas/gakumas.exe` 顺序查找；若本地不存在，自动从远程 Profile 仓库对应的 GitHub Release（或 `host_url`）下载并缓存至 `$HOME/.config/gakumas/gakumas.exe`。
 
 ## 数据目录与配置文件（`$HOME/.config/gakumas`）
 
@@ -36,12 +21,13 @@ cargo build --release --manifest-path public/launcher/Cargo.toml --target x86_64
   "profile_base_url": "https://raw.githubusercontent.com/<owner>/<repo>/main",
   "bepinex": "/path/to/BepInEx-Unity.IL2CPP-win-x64.zip",
   "host": "/path/to/gakumas.exe",
+  "host_url": "https://github.com/<owner>/<repo>/releases/latest/download/gakumas.exe",
   "wine": "wine",
   "wine_prefix": "/path/to/wineprefix"
 }
 ```
 
-（其中 `dir` 也支持别名 `game_dir`，`profile_base_url` 支持别名 `profile_repo` / `profile_url`。）
+（其中 `dir` 兼容别名 `game_dir`，`profile_base_url` 兼容别名 `profile_repo` / `profile_url`。）
 
 ## 用法
 
@@ -52,32 +38,15 @@ cargo build --release --manifest-path public/launcher/Cargo.toml --target x86_64
 ```sh
 # 自动检测登录状态（未登录则引导登录） -> 下载/校验游戏文件 -> 匹配 Profile 脱壳并部署宿主 -> 启动游戏
 gakumas-launcher
-
-# 或通过命令行参数指定
-gakumas-launcher --dir /path/to/game --profile-base-url https://raw.githubusercontent.com/<owner>/<repo>/main
 ```
-
-- 脱壳时自动将原始文件备份为 `GameAssembly.dll.bak` 与 `gakumas.exe.bak`；若后续运行游戏未发生版本更新，启动器会直接复用已脱壳文件跳过重复解密。
-- 若未指定 `--profile` 或 `profile_base_url`，启动器会自动在 `./profile`、`./public/profile` 或可执行文件同级的 `profile/` 目录中按 `packed_sha256` 查找匹配的本地 Profile。
 
 ### 2. 分步子命令（可选）
 
 ```sh
-# 单独登录 / 退出登录
 gakumas-launcher login
 gakumas-launcher logout
-
-# 仅下载或校验客户端文件（--dry-run 仅列出待更新文件）
 gakumas-launcher download --jobs 8
-gakumas-launcher download --dry-run
-
-# 仅使用 Profile 解密 GameAssembly.dll
 gakumas-launcher decrypt
-
-# 下载、脱壳并部署宿主（不启动游戏）
 gakumas-launcher prepare
-
-# 仅获取 DMM 启动参数并拉起已准备好的游戏
 gakumas-launcher launch
-gakumas-launcher launch --dry-run
 ```

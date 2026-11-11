@@ -1,6 +1,8 @@
 mod client;
+mod decrypt;
 mod download;
 mod hardware;
+mod host;
 mod models;
 mod profile;
 mod runtime;
@@ -57,9 +59,17 @@ enum Commands {
     Launch,
 }
 
-#[tokio::main]
-async fn main() {
-    if let Err(error) = run().await {
+fn main() {
+    if host::should_run_as_host() {
+        host::run_and_exit();
+    }
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to initialize tokio runtime");
+
+    if let Err(error) = rt.block_on(run()) {
         if error.to_string() == "canceled" {
             eprintln!("Canceled.");
             std::process::exit(130);
