@@ -1,7 +1,7 @@
 {
-  "version": "3.5.3",
-  "updated_at": "2026-11-11T07:53:28+00:00",
+  "version": "3.6.0",
+  "updated_at": "2026-11-12T05:05:31+00:00",
   "decrypted": true,
-  "profile": "profile/3.5.3",
-  "packed_sha256": "fcec65ab4cbc18391ad5a67933e487d9dd8d7cbd6959c8aec1549a8369be4678"
+  "profile": "profile/3.6.0",
+  "packed_sha256": "06fc9fb271969a97d16478cbebb2c74b7c89dce61c167656a3121497bb336554"
 }
